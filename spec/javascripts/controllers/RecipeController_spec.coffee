@@ -1,50 +1,68 @@
-describe "RecipeController", ->
+describe "RecipesController", ->
   scope        = null
   ctrl         = null
+  location     = null
   routeParams  = null
+  resource     = null
+
+  # access injected service later
   httpBackend  = null
-  recipeId     = 42
 
-  fakeRecipe   =
-    id: recipeId
-    name: "Baked Potatoes"
-    instructions: "Pierce potato with fork, nuke for 20 minutes"
-
-  setupController =(recipeExists=true)->
-    inject(($location, $routeParams, $rootScope, $httpBackend, $controller)->
+  setupController = (keywords,results)->
+    inject(($location, $routeParams, $rootScope, $resource, $httpBackend, $controller)->
       scope       = $rootScope.$new()
       location    = $location
-      httpBackend = $httpBackend
+      resource    = $resource
       routeParams = $routeParams
-      routeParams.recipeId = recipeId
+      routeParams.keywords = keywords
 
-      request = new RegExp("\/recipes/#{recipeId}")
-      results = if recipeExists
-        [200,fakeRecipe]
-      else
-        [404]
+      # capture the injected service
+      httpBackend = $httpBackend
 
-      httpBackend.expectGET(request).respond(results[0],results[1])
+      if results
+        request = new RegExp("\/recipes.*keywords=#{keywords}")
+        httpBackend.expectGET(request).respond(results)
 
-      ctrl        = $controller('RecipeController',
-        $scope: scope)
+      ctrl = $controller('RecipesController',
+        $scope: scope
+        $location: location)
     )
-
-  beforeEach(module("receta"))
 
   afterEach ->
     httpBackend.verifyNoOutstandingExpectation()
     httpBackend.verifyNoOutstandingRequest()
 
+  beforeEach ->
+    module("receta")
+    setupController()
+
   describe 'controller initialization', ->
-    describe 'recipe is found', ->
-      beforeEach(setupController())
-      it 'loads the given recipe', ->
+    describe 'when no keywords present', ->
+      it 'defaults to no recipes', ->
+        expect(scope.recipes).toEqualData([])
+
+    describe 'with keywords', ->
+      keywords = 'foo'
+      recipes = [
+        {
+          id: 2
+          name: 'Baked Potatoes'
+        },
+        {
+          id: 4
+          name: 'Potatoes Au Gratin'
+        }
+      ]
+      beforeEach ->
+        setupController(keywords,recipes)
         httpBackend.flush()
-        expect(scope.recipe).toEqualData(fakeRecipe)
-    describe 'recipe is not found', ->
-      beforeEach(setupController(false))
-      it 'loads the given recipe', ->
-        httpBackend.flush()
-        expect(scope.recipe).toBe(null)
-        # what else?!
+
+      it 'calls the back-end', ->
+        expect(scope.recipes).toEqualData(recipes)
+
+  describe 'search()', ->
+    it 'redirects to itself with a keyword param', ->
+      keywords = 'foo'
+      scope.search(keywords)
+      expect(location.path()).toBe('/')
+      expect(location.search()).toEqualData({keywords: keywords})
