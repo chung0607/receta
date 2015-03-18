@@ -1,7 +1,7 @@
 Rails.application.routes.draw do
 
   #get 'recipes/index'
-  resources :recipes, only: [:index, :show]
+  resources :recipes, only: [:index, :show, :create, :update, :destroy]
 
   root 'home#index'
 
